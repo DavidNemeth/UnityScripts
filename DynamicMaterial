@@ -1,0 +1,27 @@
+using UnityEngine;
+using System.Collections;
+
+public class ChangeMaterial : MonoBehaviour
+{
+  public Material[] _material;
+  Renderer _rend;
+  
+  void Start()
+  {
+    _rend = GetCompenent<Renderer>();
+    _rend.enabled = true;
+    _rend.sharedMaterial = material[0];
+  }
+
+  void OnCollisionEnter (Collision col)
+  {
+    if (col.gameObject.tag == "Box")
+    {
+      rend.sharedMaterial = material[1];
+    }
+    else
+    {
+      rend.sharedMaterial = material[2];
+    }
+  }
+}
