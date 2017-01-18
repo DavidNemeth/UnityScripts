@@ -20,7 +20,7 @@ public class PlayerMovement : MonoBehaviour
 
     Rect staminaRect;
     Texture2D staminaTexture;
-    public CharacterController cc;
+    CharacterController cc;
     // Use this for initialization
     void Start()
     {
