@@ -1,0 +1,39 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class MovementTransitions : MonoBehaviour
+{
+    private Animator anim;
+
+    GameObject g;
+    public PlayerMovement pm;
+
+    float vert;
+
+    // Use this for initialization
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+
+        pm = g.GetComponent<PlayerMovement>();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        vert = Input.GetAxis("Vertical");
+
+        if (pm.movementspeed < pm.runSpeed)
+        {
+            anim.SetFloat("speed", vert);
+            anim.SetBool("isRunning", false);
+        }
+
+        if (pm.movementspeed == pm.runSpeed)
+        {
+            anim.SetBool("isRunning", true);
+        }
+
+    }
+}
