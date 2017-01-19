@@ -9,14 +9,14 @@ public class MainMenu : MonoBehaviour
     public Canvas quitMenu;
     public Button playBtn;
     public Button exitBtn;
-	
-	void Start ()
+
+    void Start()
     {
         quitMenu = quitMenu.GetComponent<Canvas>();
         playBtn = playBtn.GetComponent<Button>();
         exitBtn = exitBtn.GetComponent<Button>();
         quitMenu.enabled = false;
-	}
+    }
 
     public void StartLevel()
     {
@@ -28,7 +28,7 @@ public class MainMenu : MonoBehaviour
         quitMenu.enabled = true;
         playBtn.enabled = false;
         exitBtn.enabled = false;
-    } 
+    }
 
     public void NoPress()
     {
