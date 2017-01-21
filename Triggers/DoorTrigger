@@ -1,0 +1,45 @@
+using UnityEngine;
+
+public class GateTrigger : MonoBehaviour
+{
+
+    public Animator anim;
+    bool inRange;
+    bool isOpen = false;
+
+    void Update()
+    {
+        if (inRange && Input.GetButtonDown("Use"))
+        {
+            if (!isOpen)            
+                OpenDoor();            
+            else
+                CloseDoor();
+        }
+            
+    }
+
+    void OnTriggerEnter(Collider col)
+    {
+        if (col.CompareTag("Player"))
+            inRange = true;
+    }
+
+    void OnTriggerExit(Collider col)
+    {
+        if (col.CompareTag("Player"))
+            inRange = false;
+    }
+
+    public void OpenDoor()
+    {
+        anim.SetBool("isOpen", true);
+        isOpen = true;
+    }
+
+    public void CloseDoor()
+    {
+        anim.SetBool("isOpen", false);
+        isOpen = false;
+    }
+}
