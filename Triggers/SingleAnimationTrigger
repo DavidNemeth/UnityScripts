@@ -1,0 +1,13 @@
+using UnityEngine;
+
+public class PlankTrigger : MonoBehaviour {
+
+    public Animator anim;
+
+    void OnTriggerEnter(Collider col)
+    {
+        if (col.CompareTag("Player"))
+            anim.SetBool("isBroken", true);           
+        
+    }
+}
