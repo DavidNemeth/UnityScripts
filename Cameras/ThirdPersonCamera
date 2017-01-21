@@ -1,0 +1,82 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ThirdPersonCamera : MonoBehaviour
+{
+    /*Camera Properties*/
+    public float distanceAway = 3.0f;
+    public float sensitivityX = 4.0f;
+    public float sensitivityY = 1.0f;
+
+    private const float Y_ANGLE_MIN = 0.0f;
+    private const float Y_ANGLE_MAX = 89.0f;
+
+    /*Collision layers*/
+    public LayerMask CamOcclusion;
+
+    RaycastHit hit;
+    Vector3 destination;
+
+    public Transform PlayerCharacter;   
+    public Transform PlayerCamera;
+    private Camera cam;
+
+    private float currentX = 0.0f;
+    private float currentY = 0.0f;
+
+    private float tempX = 0.0f;
+    private float tempY = 0.0f;
+
+    private void Start()
+    {
+        PlayerCamera = transform;
+        cam = Camera.main;
+        Cursor.visible = false;
+    }
+
+    private void Update()
+    {
+        float mouseX = Input.GetAxis("Mouse X") * sensitivityX;
+        LockedCamera(mouseX);        
+    }
+
+    private void LateUpdate()
+    {
+        Vector3 targetOffset = new Vector3(0, 0, -distanceAway);
+        Quaternion rotation = Quaternion.Euler(currentY, currentX, 0);
+        PlayerCamera.position = PlayerCharacter.position + rotation * targetOffset;
+        PlayerCamera.LookAt(PlayerCharacter.position);
+    }
+
+    private void FixedUpdate()
+    {
+        destination = PlayerCharacter.position + PlayerCharacter.forward * -1 * distanceAway + Vector3.up;
+        if (Physics.Linecast(PlayerCharacter.position, destination, out hit))
+        {
+            if (hit.collider.CompareTag("Terrain"))
+            {
+                PlayerCamera.position = hit.point + hit.normal * 0.3f;
+            }
+        }
+        PlayerCamera.position = Vector3.Lerp(PlayerCamera.position, destination, Time.deltaTime * 10);
+        PlayerCamera.LookAt(PlayerCharacter);
+    }
+    private void ResetCamera()
+    {
+        PlayerCamera = transform;
+        cam = Camera.main;
+        currentY = tempY;
+        currentX = tempX;
+        Cursor.visible = false;
+    }
+
+    private void LockedCamera(float mouseX)
+    {
+        currentX += Input.GetAxis("Mouse X") * sensitivityX;
+        currentY -= Input.GetAxis("Mouse Y") * sensitivityY;
+        currentY = Mathf.Clamp(currentY, Y_ANGLE_MIN, Y_ANGLE_MAX);
+        PlayerCharacter.transform.Rotate(0, mouseX, 0);
+        Cursor.visible = false;
+    }
+}
