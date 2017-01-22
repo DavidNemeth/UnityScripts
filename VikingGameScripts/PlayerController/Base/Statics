@@ -1,0 +1,55 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public static class Statics
+{
+    #region hash
+    public static string horizontal = "horizontal";
+    public static string vertical = "vertical";
+    public static string special = "special";
+    public static string specialType = "specialType";
+    public static string onLocomotion = "onLocomotion";
+    public static string Horizontal = "Horizontal";
+    public static string Vertical = "Vertical";
+    public static string jumpType = "jumpType";
+    public static string Jump = "Jump";
+    public static string onAir = "onAir";
+    public static string mirrorJump = "mirrorJump";
+    public static string incline = "incline";
+    public static string Run = "Run";
+    #endregion
+
+    #region Functions
+    public static int GetAnimSpecialType(AnimSpecials i)
+    {
+        int r = 0;
+        switch (i)
+        {
+            case AnimSpecials.runToWalk:
+                r = 12;
+                break;
+            case AnimSpecials.runToStop:
+                r = 11;
+                break;
+            case AnimSpecials.run:
+                r = 10;
+                break;
+            case AnimSpecials.jump_idle:
+                r = 21;
+                break;
+            case AnimSpecials.run_jump:
+                r = 22;
+                break;
+            default:
+                break;
+        }
+        return r;
+    }
+    #endregion
+
+    public enum AnimSpecials
+    {
+        run, runToStop, jump_idle, run_jump, runToWalk
+    }
+}
