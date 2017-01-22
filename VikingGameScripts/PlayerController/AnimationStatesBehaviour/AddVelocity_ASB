@@ -1,0 +1,67 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class AddVelocity_ASB : StateMachineBehaviour
+{
+    public float life = 0.4f;
+    public float force = 6;
+    public Vector3 direction;
+    [Space]
+    [Header("Override the direction")]
+    public bool useTransformForward;
+    public bool additive;
+    public bool onEnter;
+    public bool onExit;
+    [Header("Applying velocity")]
+    public bool onEndClampVelocity;
+
+    StateManager states;
+    PlayerMovement ply;
+
+    public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
+    {
+        if (onEnter)
+        {
+            if (useTransformForward && !additive)            
+                direction = animator.transform.forward;
+
+            if (useTransformForward && additive)
+                direction += animator.transform.forward;
+
+            if (states == null)
+                states = animator.transform.GetComponent<StateManager>();
+
+            if (!states.isPlayer)
+                return;
+
+            if (ply == null)
+                ply = animator.transform.GetComponent<PlayerMovement>();
+
+            ply.AddVelocity(direction, life, force, onEndClampVelocity);
+        }
+    }
+
+    public override void OnStateExit(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
+    {
+        if (onExit)
+        {
+            if (useTransformForward && !additive)
+                direction = animator.transform.forward;
+
+            if (useTransformForward && additive)
+                direction += animator.transform.forward;
+
+            if (states == null)
+                states = animator.transform.GetComponent<StateManager>();
+
+            if (!states.isPlayer)
+                return;
+
+            if (ply == null)
+                ply = animator.transform.GetComponent<PlayerMovement>();
+
+            ply.AddVelocity(direction, life, force, onEndClampVelocity);
+        }
+    }
+}
