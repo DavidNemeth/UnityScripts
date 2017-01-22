@@ -1,0 +1,236 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CameraManager : MonoBehaviour
+{
+    public bool holdCamera;
+    public bool addDefaultAsNormal;
+    public Transform target;
+
+    #region Variables
+    [SerializeField]
+    public string activeStateID;
+    [SerializeField]
+    float moveSpeed = 5;
+    [SerializeField]
+    float turnSpeed = 1.5f;
+    [SerializeField]
+    float turnSpeedController = 5.5f;
+    [SerializeField]
+    float turnSmoothing = .1f;
+    [SerializeField]
+    bool isController;
+    public bool lockCursor;
+    #endregion
+
+    #region References
+    [HideInInspector]
+    public Transform pivot;
+    [HideInInspector]
+    public Transform camTrans;
+    #endregion
+
+    static public CameraManager singleton;
+
+    Vector3 targetPosition;
+    [HideInInspector]
+    public Vector3 targetPositionOffset;
+
+    #region Internal Variables
+    float x;
+    float y;
+    float lookAngle;
+    float tiltAngle;
+    float offsetX;
+    float offsetY;
+    float smoothX = 0;
+    float smoothY = 0;
+    float smoothXvelocity = 0;
+    float smoothYvelocity = 0;
+    #endregion
+
+    [SerializeField]
+    List<CameraState> cameraState = new List<CameraState>();
+    CameraState activeState;
+    CameraState defaultState;
+
+    void Awake()
+    {
+        singleton = this;
+    }
+
+    void Start()
+    {
+        if (Camera.main.transform == null)
+        {
+            Debug.Log("MainCamera not found!");
+        }
+        camTrans = Camera.main.transform.parent;
+        pivot = camTrans.parent;
+
+        /*Default State*/
+        CameraState cs = new CameraState();
+        cs.id = "default";
+        cs.minAngle = 35;
+        cs.maxAngle = 35;
+        cs.cameraFOV = Camera.main.fieldOfView;
+        cs.cameraZ = camTrans.localPosition.z;
+        cs.pivotPosition = pivot.localPosition;
+        defaultState = cs;
+
+        if (addDefaultAsNormal)
+        {
+            cameraState.Add(defaultState);
+            defaultState.id = "normal";
+        }
+
+        activeState = defaultState;
+        activeStateID = activeState.id;
+        FixPositions();
+
+        if (lockCursor)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    void FixedUpdate()
+    {
+        if (target)
+            targetPosition = target.position + targetPositionOffset;
+
+        CameraFollow();
+
+        if (!holdCamera)
+            HandleRotation();
+
+        FixPositions();
+    }
+    void CameraFollow()
+    {
+        Vector3 camPosition = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
+        transform.position = camPosition;
+    }
+    void HandleRotation()
+    {
+        HandleOffsets();
+
+        x = Input.GetAxis("Mouse X") + offsetX;
+        y = Input.GetAxis("Mouse Y") + offsetY;
+
+        float targetTurnSpeed = turnSpeed;
+
+        if (isController)
+            targetTurnSpeed = turnSpeedController;
+
+        if (turnSmoothing > 0)
+        {
+            smoothX = Mathf.SmoothDamp(smoothX, x, ref smoothXvelocity, turnSmoothing);
+            smoothY = Mathf.SmoothDamp(smoothY, y, ref smoothYvelocity, turnSmoothing);
+        }
+        else
+        {
+            smoothX = x;
+            smoothY = y;
+        }
+
+        lookAngle += smoothX * targetTurnSpeed;
+
+        if (lookAngle > 360)
+            lookAngle = 0;
+        if (lookAngle < -360)
+            lookAngle = 0;
+
+        transform.rotation = Quaternion.Euler(0f, lookAngle, 0);
+
+        tiltAngle -= smoothY * targetTurnSpeed;
+        tiltAngle = Mathf.Clamp(tiltAngle, -activeState.minAngle, activeState.maxAngle);
+
+        pivot.localRotation = Quaternion.Euler(tiltAngle, 0, 0);
+    }
+    void HandleOffsets()
+    {
+        if (offsetX != 0)
+            offsetX = Mathf.MoveTowards(offsetX, 0, Time.deltaTime);
+        if (offsetY != 0)
+            offsetY = Mathf.MoveTowards(offsetY, 0, Time.deltaTime);
+    }
+    CameraState GetState(string id)
+    {
+        CameraState r = null;
+        for (int i = 0; i < cameraState.Count; i++)
+        {
+            if (cameraState[i].id == id)
+            {
+                r = cameraState[i];
+                break;
+            }
+        }
+        return r;
+    }
+    public void ChangeState(string id)
+    {
+        if (activeState.id != id)
+        {
+            CameraState targetState = GetState(id);
+            if (targetState == null)
+            { Debug.Log("Camera state ' " + id + " ' not found! Using previous"); return; }
+
+            activeState = targetState;
+            activeStateID = activeState.id;
+        }
+    }
+    void FixPositions()
+    {
+        Vector3 targetPivotPosition = (activeState.useDefaultPosition) ? defaultState.pivotPosition : activeState.pivotPosition;
+        pivot.localPosition = Vector3.Lerp(pivot.localPosition, targetPivotPosition, Time.deltaTime * 5);
+
+        float targetZ = (activeState.useDefaultCameraZ) ? defaultState.cameraZ : activeState.cameraZ;
+        Vector3 targetP = camTrans.localPosition;
+        targetP.z = Mathf.Lerp(targetP.z, targetZ, Time.deltaTime * 5);
+        camTrans.localPosition = targetP;
+
+        float targetFov = (activeState.useDefaultFOV) ? defaultState.cameraFOV : activeState.cameraFOV;
+
+        if (targetFov < 1)
+            targetFov = 2;
+
+        Camera.main.fieldOfView = Mathf.Lerp(Camera.main.fieldOfView, targetFov, Time.deltaTime * 5);
+    }
+    IEnumerator LerpCameraFOV(float z)
+    {
+        float cur = Camera.main.fieldOfView;
+        float targetFov = z;
+
+        if (targetFov < 1)
+            targetFov = 2;
+        float t = 0;
+
+        while (t < 1)
+        {
+            t += Time.deltaTime * 5;
+            Camera.main.fieldOfView = Mathf.Lerp(cur, targetFov, t);
+            yield return null;
+        }
+    }
+}
+[System.Serializable]
+public class CameraState
+{
+    [Header("Name of state")]
+    public string id;
+    [Header("Limits")]
+    public float minAngle;
+    public float maxAngle;
+    [Header("Pivot Position")]
+    public bool useDefaultPosition;
+    public Vector3 pivotPosition;
+    [Header("Camera Position")]
+    public bool useDefaultCameraZ;
+    public float cameraZ;
+    [Header("Camera FOV")]
+    public bool useDefaultFOV;
+    public float cameraFOV;
+}
