@@ -1,0 +1,278 @@
+using System;
+using System.Collections;
+using UnityEngine;
+
+public class HandleMovement_Player : MonoBehaviour
+{
+    StateManager states;
+    Rigidbody rb;
+
+    public bool doAngleCheck = true;
+    [SerializeField]
+    float degreesRunThreshold = 8;
+    [SerializeField]
+    bool useDot = true;
+
+    bool overrideForce;
+    bool inAngle;
+
+    float rotateTimer_;
+    float velocityChange = 4;
+    bool applyJumpForce;
+
+    Vector3 storeDirection;
+    InputHandler ih;
+
+    Vector3 curVelocity;
+    Vector3 targetVelocity;
+    float prevAngle;
+    Vector3 prevDir;
+
+    Vector3 overrideDirection;
+    float overrideSpeed;
+    float forceOverrideTimer;
+    float forceOverLife;
+    bool stopVelocity;
+
+    public void Init(StateManager st, InputHandler ih)
+    {
+        this.ih = ih;
+        states = st;
+        rb = st.rBody;
+        states.anim.applyRootMotion = false;
+    }
+
+    public void Tick()
+    {
+        if (!overrideForce)
+        {
+            HandleDrag();
+            if (states.onLocomotion)
+                MovementNormal();
+            HandleJump();
+        }
+        else
+        {
+            states.horizontal = 0;
+            states.vertical = 0;
+            OverrideLogic();
+        }
+    }
+
+    private void HandleJump()
+    {
+        if (states.onGround && states.canJump)
+        {
+            if (states.jumpInput && !states.jumping && states.onLocomotion && states.curState != StateManager.CharStates.Hold && states.curState != StateManager.CharStates.InAir)
+            {
+                if (states.curState == StateManager.CharStates.Idle)
+                {
+                    states.anim.SetBool(Statics.special, true);
+                    states.anim.SetInteger(Statics.specialType, Statics.GetAnimSpecialType(Statics.AnimSpecials.jump_idle));
+                }
+
+                if (states.curState == StateManager.CharStates.Moving)
+                {
+                    states.LegFront();
+                    states.jumping = true;
+                    states.anim.SetBool(Statics.special, true);
+                    states.anim.SetInteger(Statics.specialType, Statics.GetAnimSpecialType(Statics.AnimSpecials.run_jump));
+                    states.curState = StateManager.CharStates.Hold;
+                    states.anim.SetBool(Statics.onAir, true);
+                    states.canJump = false;
+                }
+            }
+        }
+        if (states.jumping)
+        {
+            if (states.onGround)
+            {
+                if (!applyJumpForce)
+                {
+                    StartCoroutine(AddJumpForce(0));
+                    applyJumpForce = true;
+                }
+            }
+            else
+                states.jumping = false;
+        }
+    }
+
+    IEnumerator AddJumpForce(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        rb.drag = 0;
+        Vector3 vel = rb.velocity;
+        Vector3 forward = transform.forward;
+        vel = forward * 3;
+        vel.y = states.jumpForce;
+        rb.velocity = vel;
+        StartCoroutine(CloseJump());
+    }
+
+    private IEnumerator CloseJump()
+    {
+        yield return new WaitForSeconds(0.3f);
+        states.curState = StateManager.CharStates.InAir;
+        states.jumping = false;
+        applyJumpForce = false;
+        states.canJump = false;
+        StartCoroutine(EnableJump());
+    }
+
+    private IEnumerator EnableJump()
+    {
+        yield return new WaitForSeconds(1.3f);
+        states.canJump = true;
+    }
+
+    private void MovementNormal()
+    {
+        inAngle = states.inAngle_MoveDir;
+
+        Vector3 v = ih.camManager.transform.forward * states.vertical;
+        Vector3 h = ih.camManager.transform.right * states.horizontal;
+
+        v.y = 0;
+        h.y = 0;
+        if (states.onGround)
+        {            
+            if (states.onLocomotion)
+                HandleRotation_Normal(h, v);
+            float targetSpeed = states.walkSpeed;
+            if (states.run && states.groundAngle == 0)
+                targetSpeed = states.runSpeed;
+
+
+            HandleVelocity_Normal(h, v, targetSpeed);
+        }
+        HandleAnimations_Normal();
+    }
+
+    private void HandleAnimations_Normal()
+    {
+        Vector3 relativeDirection = transform.InverseTransformDirection(states.moveDirection);
+
+        float h = relativeDirection.x;
+        float v = relativeDirection.z;
+
+        if (states.obstacleForward)
+            v = 0;
+        states.anim.SetFloat(Statics.vertical, v, 0.2f, Time.deltaTime);
+        states.anim.SetFloat(Statics.horizontal, h, 0.2f, Time.deltaTime);
+    }
+
+    private void HandleVelocity_Normal(Vector3 h, Vector3 v, float speed)
+    {
+        Vector3 curVelocity = rb.velocity;
+
+        if (states.horizontal != 0 || states.vertical != 0)
+        {
+            targetVelocity = (h + v).normalized * speed;
+            velocityChange = 3;
+        }
+        else
+        {
+            velocityChange = 2;
+            targetVelocity = Vector3.zero;
+        }
+
+        Vector3 vel = Vector3.Lerp(curVelocity, targetVelocity, Time.deltaTime * velocityChange);
+        rb.velocity = vel;
+
+        if (states.obstacleForward)
+            rb.velocity = Vector3.zero;
+    }
+
+    private void HandleRotation_Normal(Vector3 h, Vector3 v)
+    {
+        if (Math.Abs(states.vertical) > 0 || Mathf.Abs(states.horizontal) > 0)
+        {
+            storeDirection = (v + h).normalized;
+            float targetAngle = Mathf.Atan2(storeDirection.x, storeDirection.z) * Mathf.Rad2Deg;
+
+            if (states.run && doAngleCheck)
+            {
+                if (!useDot)
+                {
+                    if ((Mathf.Abs(prevAngle - targetAngle)) > degreesRunThreshold)
+                    {
+                        prevAngle = targetAngle;
+                        PlayAnimSpecial(Statics.AnimSpecials.runToStop, false);
+                        return;
+                    }
+                }
+                else
+                {
+                    float dot = Vector3.Dot(prevDir, states.moveDirection);
+                    if (dot < 0)
+                    {
+                        prevDir = states.moveDirection;
+                        PlayAnimSpecial(Statics.AnimSpecials.runToStop, false);
+                        return;
+                    }
+                }
+            }
+            prevDir = states.moveDirection;
+            prevAngle = targetAngle;
+
+            storeDirection += transform.position;
+            Vector3 targetDir = (storeDirection - transform.position).normalized;
+            targetDir.y = 0;
+            if (targetDir == Vector3.zero)
+                targetDir = transform.forward;
+            Quaternion targetRot = Quaternion.LookRotation(targetDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, velocityChange * Time.deltaTime);
+        }
+    }
+
+    public void PlayAnimSpecial(Statics.AnimSpecials t, bool sptrue = true)
+    {
+        int n = Statics.GetAnimSpecialType(t);
+        states.anim.SetBool(Statics.specialType, sptrue);
+        states.anim.SetInteger(Statics.specialType, n);
+        StartCoroutine(CloseSpecialOnAnim(0.4f));
+    }
+
+    private IEnumerator CloseSpecialOnAnim(float t)
+    {
+        yield return new WaitForSeconds(t);
+        states.anim.SetBool(Statics.special, false);
+    }
+
+    public void AddVelocity(Vector3 direction, float t, float force, bool clamp)
+    {
+        forceOverLife = t;
+        overrideSpeed = force;
+        overrideForce = true;
+        forceOverrideTimer = 0;
+        overrideDirection = direction;
+        rb.velocity = Vector3.zero;
+        stopVelocity = clamp;
+    }
+
+    void OverrideLogic()
+    {
+        rb.drag = 0;
+        rb.velocity = overrideDirection * overrideSpeed;
+
+        forceOverrideTimer += Time.deltaTime;
+        if (forceOverrideTimer > forceOverLife)
+        {
+            if (stopVelocity)
+                rb.velocity = Vector3.zero;
+
+            stopVelocity = false;
+            overrideForce = false;
+        }
+    }
+
+    private void HandleDrag()
+    {
+        if (states.horizontal != 0 || states.vertical != 0 || states.onGround == false)
+            rb.drag = 0;
+        else
+            rb.drag = 4;
+
+    }
+}
