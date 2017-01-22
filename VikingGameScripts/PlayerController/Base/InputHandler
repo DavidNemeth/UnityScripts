@@ -1,0 +1,136 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class InputHandler : MonoBehaviour
+{
+    StateManager states;
+    [HideInInspector]
+    public ThirdPersonOrbitCam camManager;
+    PlayerMovement playerMovement;
+
+    float horizontal;
+    float vertical;
+
+    void Start()
+    {
+        /*Add References*/
+        gameObject.AddComponent<PlayerMovement>();
+
+        /*Get References*/
+        camManager = ThirdPersonOrbitCam.singleton;
+        states = GetComponent<StateManager>();
+        playerMovement = GetComponent<PlayerMovement>();
+        camManager.player = this.transform;
+
+        /*Initialization*/
+        states.isPlayer = true;
+        states.Init();
+        playerMovement.Init(states, this);
+
+        FixPlayerMeshes();
+    }
+
+    void FixedUpdate()
+    {        
+        states.FixedTick();
+        UpdateStatesFromInput();        
+    }    
+    
+    void Update()
+    {
+        states.RegularTick();
+        playerMovement.Tick();
+    }
+
+    private void UpdateStatesFromInput()
+    {
+        vertical = Input.GetAxis(Statics.Vertical);
+        horizontal = Input.GetAxis(Statics.Horizontal);
+
+        Vector3 v = camManager.transform.forward * vertical;
+        Vector3 h = camManager.transform.right * horizontal;
+
+        v.y = 0;
+        h.y = 0;
+
+        states.horizontal = horizontal;
+        states.vertical = vertical;
+
+        Vector3 moveDir = (h + v).normalized;
+        states.moveDirection = moveDir;
+        states.inAngle_MoveDir = InAngle(states.moveDirection, 25);
+        if (states.walk && horizontal != 0 || states.walk && vertical != 0)
+            states.inAngle_MoveDir = true;
+        states.onLocomotion = states.anim.GetBool(Statics.onLocomotion);
+        HandleRun();
+
+        states.jumpInput = Input.GetButton(Statics.Jump);
+    }
+
+    private void HandleRun()
+    {
+        bool runInput = Input.GetButton(Statics.Run);
+
+        if (runInput)
+        {
+            states.walk = false;
+            states.run = true;
+        }
+        else
+        {
+            states.walk = true;
+            states.run = false;            
+        }
+
+        if (horizontal !=0||vertical!=0)
+        {
+            states.run = runInput;
+            states.anim.SetInteger(Statics.specialType, Statics.GetAnimSpecialType(Statics.AnimSpecials.run));
+        }
+        else
+        {
+            if (states.run)
+                states.run = false;
+        }
+
+        //if (!states.inAngle_MoveDir && hMove.doAngleCheck)
+        //    states.run = false;
+
+        if (states.obstacleForward)
+        {
+            states.run = false;
+            states.walk = false;
+        }            
+
+        if (states.run == false && states.walk == false)
+            states.anim.SetInteger(Statics.specialType, Statics.GetAnimSpecialType(Statics.AnimSpecials.runToStop));
+
+        if (states.run == false && states.walk == true)
+        {
+            states.anim.SetInteger(Statics.specialType, Statics.GetAnimSpecialType(Statics.AnimSpecials.runToWalk));
+        }
+    }
+
+    private bool InAngle(Vector3 targetDirection, float angleThreshold)
+    {
+        bool r = false;
+        float angle = Vector3.Angle(transform.forward, targetDirection);
+
+        if (angle < angleThreshold)
+            r = true;
+
+        return r;
+    }
+
+    private void FixPlayerMeshes()
+    {
+        SkinnedMeshRenderer[] skinned = GetComponentsInChildren<SkinnedMeshRenderer>();
+        for (int i = 0; i < skinned.Length; i++)
+        {
+            skinned[i].updateWhenOffscreen = true;
+        }
+    }
+
+}
