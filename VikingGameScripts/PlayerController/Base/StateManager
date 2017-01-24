@@ -34,6 +34,7 @@ public class StateManager : MonoBehaviour
 
     /*Character States*/
     [Header("State Requests")]
+    public float CurrentSpeed;
     public float fallDistance;
     public CharStates curState;
     public bool onGround;
@@ -149,6 +150,7 @@ public class StateManager : MonoBehaviour
     {
         onGround = OnGround();
         fallDistance = Math.Abs(rBody.velocity.y);
+        CurrentSpeed = rBody.velocity.magnitude;
     }
     private void MonitorAirTime()
     {
@@ -212,7 +214,7 @@ public class StateManager : MonoBehaviour
             Vector3 reflectVect = Vector3.Reflect(incomingVec, hit.normal);
             float angle = Vector3.Angle(incomingVec, reflectVect);
 
-            if (angle < 70)
+            if (angle < 80)
                 obstacleForward = false;
         }
         if (groundForward)
