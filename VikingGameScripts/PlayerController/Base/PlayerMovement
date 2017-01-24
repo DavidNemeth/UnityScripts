@@ -140,8 +140,12 @@ public class PlayerMovement : MonoBehaviour
             if (states.onLocomotion)
                 HandleRotation_Normal(h, v);
             float targetSpeed = states.walkSpeed;
-            if (states.run && states.groundAngle == 0)
-                targetSpeed = states.runSpeed;
+
+            if (states.run)
+                if (Mathf.Abs(states.groundAngle) < 0.3)
+                {
+                    targetSpeed = states.runSpeed;
+                }               
 
             if (inAngle)
                 HandleVelocity_Normal(h, v, targetSpeed);
